@@ -1,0 +1,32 @@
+<span ng-if="!data">{{value}}</span>
+
+<!-- Device list: compact badge -->
+<span ng-if="data && !details" class="terminal-status" title="{{data.reader}}">
+    <span ng-if="data.type === 'dt.donation'">{{money(data.amount, data.currency)}}</span>
+    <span class="label" ng-class="stale ? 'label-default' : badge.css">{{badge.text}}</span>
+    <small class="text-muted" ng-class="{'terminal-status-stale': stale}">{{ago(data.ts)}}</small>
+</span>
+
+<!-- Device dialog: details -->
+<div ng-if="data && details" class="terminal-status-details">
+    <p>
+        <span class="label" ng-class="stale ? 'label-default' : badge.css">{{badge.text}}</span>
+        <span ng-if="stale" class="text-warning">&nbsp;No report since {{ago(data.ts)}} — is the donation app running?</span>
+    </p>
+    <dl class="dl-horizontal" ng-if="data.type === 'dt.terminal'">
+        <dt ng-if="data.since">Since</dt><dd ng-if="data.since">{{data.since | date:'medium'}} ({{ago(data.since)}})</dd>
+        <dt ng-if="data.reader">Reader</dt><dd ng-if="data.reader">{{data.readerModel}} {{data.reader}}</dd>
+        <dt ng-if="data.battery !== undefined && data.battery !== null">Battery</dt>
+        <dd ng-if="data.battery !== undefined && data.battery !== null">{{percent(data.battery)}}<span ng-if="data.charging">, charging</span></dd>
+        <dt ng-if="data.firmware">Firmware</dt><dd ng-if="data.firmware">{{data.firmware}}</dd>
+        <dt ng-if="data.location">Location</dt><dd ng-if="data.location">{{data.location}}</dd>
+        <dt ng-if="data.app">App version</dt><dd ng-if="data.app">{{data.app}}</dd>
+        <dt>Reported</dt><dd>{{data.ts | date:'medium'}} ({{ago(data.ts)}})</dd>
+    </dl>
+    <dl class="dl-horizontal" ng-if="data.type === 'dt.donation'">
+        <dt>Amount</dt><dd>{{money(data.amount, data.currency)}}</dd>
+        <dt ng-if="data.error">Error</dt><dd ng-if="data.error">{{data.error}}</dd>
+        <dt ng-if="data.id">Payment</dt><dd ng-if="data.id"><code>{{data.id}}</code></dd>
+        <dt>Time</dt><dd>{{data.ts | date:'medium'}} ({{ago(data.ts)}})</dd>
+    </dl>
+</div>

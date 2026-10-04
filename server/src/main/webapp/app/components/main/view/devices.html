@@ -426,13 +426,13 @@
                 <span>{{device.publicIp}}</span>
             </td>
             <td ng-if="settings.columnDisplayedCustom1 && commonSettings.customPropertyName1">
-                <span>{{device.custom1}}</span>
+                <terminal-status-value value="device.custom1"></terminal-status-value>
             </td>
             <td ng-if="settings.columnDisplayedCustom2 && commonSettings.customPropertyName2">
-                <span>{{device.custom2}}</span>
+                <terminal-status-value value="device.custom2"></terminal-status-value>
             </td>
             <td ng-if="settings.columnDisplayedCustom3 && commonSettings.customPropertyName3">
-                <span>{{device.custom3}}</span>
+                <terminal-status-value value="device.custom3"></terminal-status-value>
             </td>
 
             <td class="deviceActions">
