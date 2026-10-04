@@ -2400,3 +2400,10 @@ h4.collapse-control {
     overflow-y: scroll;
     max-height: 400px;
 }
+/* DonationTap terminal status (app/shared/terminalStatus.js) */
+.terminal-status { white-space: nowrap; }
+.terminal-status .label { margin: 0 4px; }
+.terminal-status-stale { font-style: italic; }
+.terminal-status-details .dl-horizontal { margin-bottom: 0; }
+.terminal-status-details .dl-horizontal dt { width: 110px; }
+.terminal-status-details .dl-horizontal dd { margin-left: 125px; }
