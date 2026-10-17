@@ -454,6 +454,11 @@
                         ng-click='showQrCode(device)'>
                     <span class='glyphicon glyphicon-qrcode'></span>
                 </button>
+                <button type='button' class='btn btn-default' title="Screenshot"
+                        ng-if="device.donationTapVersion"
+                        ng-click='showScreenshot(device)'>
+                    <span class='glyphicon glyphicon-camera'></span>
+                </button>
                 <button type='button' class='btn btn-default' ng-click='removeDevice( device )'
                         localized-title="button.delete" ng-if="hasPermission('edit_devices')">
                     <span class='glyphicon glyphicon-trash'></span>

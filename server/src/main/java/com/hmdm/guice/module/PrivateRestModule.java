@@ -37,6 +37,7 @@ public class PrivateRestModule extends ServletModule {
         this.filter("/rest/private/*").through(AuthFilter.class);
         this.filter("/rest/private/*").through(PrivateIPFilter.class);
         this.bind(DeviceResource.class);
+        this.bind(DeviceScreenshotResource.class);
         this.bind(GroupResource.class);
         this.bind(ConfigurationResource.class);
         this.bind(CustomerResource.class);

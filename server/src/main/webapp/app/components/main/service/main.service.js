@@ -10,7 +10,9 @@ angular.module('headwind-kiosk')
             updateDeviceGroupBulk: {url: 'rest/private/devices/groupBulk', method: 'POST'},
             getDeviceApplicationSettings: {url: 'rest/private/devices/:id/applicationSettings', method: 'GET'},
             saveDeviceApplicationSettings: {url: 'rest/private/devices/:id/applicationSettings', method: 'POST'},
-            notifyDeviceOnAppSettingsUpdate: {url: 'rest/private/devices/:id/applicationSettings/notify', method: 'POST'}
+            notifyDeviceOnAppSettingsUpdate: {url: 'rest/private/devices/:id/applicationSettings/notify', method: 'POST'},
+            getScreenshot: {url: 'rest/private/screenshot/:id', method: 'GET'},
+            requestScreenshot: {url: 'rest/private/screenshot/:id/request', method: 'POST'}
         });
     })
     .factory('configurationService', function ($resource) {

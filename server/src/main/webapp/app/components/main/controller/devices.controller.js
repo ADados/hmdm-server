@@ -416,6 +416,19 @@ angular.module('headwind-kiosk')
             $window.open(url, "_self");
         };
 
+        $scope.showScreenshot = function (device) {
+            $modal.open({
+                templateUrl: 'app/components/main/view/modal/device.screenshot.html',
+                controller: 'DeviceScreenshotModalController',
+                size: 'lg',
+                resolve: {
+                    device: function () {
+                        return device;
+                    }
+                }
+            });
+        };
+
         $scope.interval = $interval(function () {
             $scope.search(true);
         }, 60 * 1000);
@@ -1200,6 +1213,81 @@ angular.module('headwind-kiosk')
                 $scope.groups = response.data;
             });
         })
+    .controller('DeviceScreenshotModalController', function ($scope, $modalInstance, $interval, deviceService, device) {
+        // The kiosk gets the request by push, so it may take a while if the push mode is polling
+        var POLL_MS = 3000;
+        var WAIT_MS = 2 * 60 * 1000;
+        var poll = null;
+        var waitingSince = 0;
+
+        $scope.device = device;
+        $scope.screenshot = null;
+        $scope.waiting = false;
+        $scope.timedOut = false;
+        $scope.errorMessage = null;
+
+        var stopPolling = function () {
+            if (poll) {
+                $interval.cancel(poll);
+                poll = null;
+            }
+            $scope.waiting = false;
+        };
+
+        var load = function (callback) {
+            deviceService.getScreenshot({id: device.id}, function (response) {
+                if (response.status === 'OK') {
+                    callback(response.data);
+                } else {
+                    stopPolling();
+                    $scope.errorMessage = response.message;
+                }
+            }, function () {
+                stopPolling();
+                $scope.errorMessage = 'Failed to load the screenshot';
+            });
+        };
+
+        $scope.takeScreenshot = function () {
+            var previousTs = $scope.screenshot ? $scope.screenshot.ts : 0;
+            $scope.errorMessage = null;
+            $scope.timedOut = false;
+            deviceService.requestScreenshot({id: device.id}, {}, function (response) {
+                if (response.status !== 'OK') {
+                    $scope.errorMessage = response.message;
+                    return;
+                }
+                stopPolling();
+                $scope.waiting = true;
+                waitingSince = Date.now();
+                poll = $interval(function () {
+                    load(function (screenshot) {
+                        if (screenshot && screenshot.ts > previousTs) {
+                            $scope.screenshot = screenshot;
+                            stopPolling();
+                        } else if (Date.now() - waitingSince > WAIT_MS) {
+                            stopPolling();
+                            $scope.timedOut = true;
+                        }
+                    });
+                }, POLL_MS);
+            }, function () {
+                $scope.errorMessage = 'Failed to ask the device for a screenshot';
+            });
+        };
+
+        $scope.closeModal = function () {
+            $modalInstance.dismiss();
+        };
+
+        $scope.$on('$destroy', stopPolling);
+
+        // Show the last screenshot right away, and ask for a fresh one
+        load(function (screenshot) {
+            $scope.screenshot = screenshot;
+            $scope.takeScreenshot();
+        });
+    })
     .controller('DeviceApplicationSettingsModalController', function ($scope, $modal, $modalInstance,
                                                                       localization, deviceService,
                                                                       applicationService, alertService,
