@@ -3,7 +3,9 @@ angular.module('headwind-kiosk')
     .controller('DevicesTabController', function ($scope, $rootScope, $state, $modal, $interval, $cookies, $window, $filter, $timeout,
                                                   confirmModal, deviceService, groupService, settingsService, hintService,
                                                   authService, pluginService, configurationService, alertService,
-                                                  spinnerService, localization, utils) {
+                                                  spinnerService, localization, utils, terminalStatusParser) {
+
+        var DONATION_TAP_PKG = 'com.betacoders.donationtap';
 
         var saveDeviceSearchParams = function() {
             var expireDate = new Date();
@@ -383,8 +385,13 @@ angular.module('headwind-kiosk')
                     });
 
                     $scope.devices = response.data.devices.items;
+                    $scope.showDonationTapColumns = false;
                     for (var i = 0; i < $scope.devices.length; i++) {
                         $scope.devices[i].lastUpdateDate = new Date($scope.devices[i].lastUpdate);
+                        $scope.devices[i].donationTapVersion = getDonationTapVersion($scope.devices[i]);
+                        if ($scope.devices[i].donationTapVersion || $scope.devices[i].custom1) {
+                            $scope.showDonationTapColumns = true;
+                        }
                     }
 
                     $scope.paging.totalItems = response.data.devices.totalItemsCount;
@@ -641,6 +648,22 @@ angular.module('headwind-kiosk')
             }
 
             return null;
+        };
+
+        // DonationTap version: from the app list the launcher reports, or else from the app's own
+        // terminal status report (custom property 1), which is fresher after an update
+        var getDonationTapVersion = function (device) {
+            var info = $scope.getDeviceInfo(device);
+            if (info && info.applications) {
+                var app = info.applications.find(function (deviceApp) {
+                    return deviceApp.pkg === DONATION_TAP_PKG;
+                });
+                if (app && app.version) {
+                    return app.version;
+                }
+            }
+            var status = terminalStatusParser(device.custom1);
+            return status && status.app ? status.app : null;
         };
 
         $scope.getDeviceBatteryLevel = function (device) {

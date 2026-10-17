@@ -346,6 +346,8 @@
                 <span ng-if='paging.sortBy === "CUSTOM3"' class="glyphicon"
                       ng-class="{'glyphicon-sort-by-alphabet': paging.sortAsc, 'glyphicon-sort-by-alphabet-alt': !paging.sortAsc}"></span>
             </th>
+            <th ng-if="showDonationTapColumns">DonationTap</th>
+            <th ng-if="showDonationTapColumns">Terminal</th>
 
             <th ng-if="hasPermission('edit_devices')" class='actions-column' localized>table.heading.device.actions</th>
         </tr>
@@ -433,6 +435,12 @@
             </td>
             <td ng-if="settings.columnDisplayedCustom3 && commonSettings.customPropertyName3">
                 <terminal-status-value value="device.custom3"></terminal-status-value>
+            </td>
+            <td ng-if="showDonationTapColumns">
+                <span>{{device.donationTapVersion}}</span>
+            </td>
+            <td ng-if="showDonationTapColumns">
+                <terminal-status-value value="device.custom1"></terminal-status-value>
             </td>
 
             <td class="deviceActions">
