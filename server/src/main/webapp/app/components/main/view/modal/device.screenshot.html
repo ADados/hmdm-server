@@ -1,0 +1,15 @@
+<div class='modal-header'>
+    <h4 class='modal-title'>Screenshot of {{device.number}}</h4>
+    <div ng-show='errorMessage' class='error'><span>{{errorMessage}}</span></div>
+</div>
+<div class='modal-body screenshot-body'>
+    <img ng-if="screenshot" class="device-screenshot" ng-src="data:image/jpeg;base64,{{screenshot.image}}"/>
+    <p ng-if="screenshot">Taken {{screenshot.ts | date:'yyyy-MM-dd HH:mm:ss'}}</p>
+    <p ng-if="!screenshot && !waiting">No screenshot yet.</p>
+    <p ng-if="waiting">Waiting for the kiosk to send a new screenshot...</p>
+    <p ng-if="timedOut">The kiosk didn't answer. It may be offline, or running a DonationTap version without screenshots.</p>
+</div>
+<div class='modal-footer'>
+    <button type='button' class='btn btn-default' ng-click='takeScreenshot()' ng-disabled="waiting">Take a new screenshot</button>
+    <button type='button' class='btn btn-default' ng-click='closeModal()' localized>button.close</button>
+</div>

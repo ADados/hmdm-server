@@ -112,7 +112,7 @@ public class TerminalStatusResource {
                 return Response.DEVICE_NOT_FOUND_ERROR();
             }
 
-            String token = findToken(device);
+            String token = findToken(this.unsecureDAO, device);
             if (token == null || token.isEmpty()) {
                 logger.warn("Terminal status rejected for {}: no {} application setting", number, TOKEN_SETTING);
                 return Response.PERMISSION_DENIED();
@@ -160,10 +160,10 @@ public class TerminalStatusResource {
     /**
      * The device-level setting overrides the configuration-level one, as for app settings sent to the device.
      */
-    private String findToken(Device device) {
-        String token = findSetting(this.unsecureDAO.getDeviceAppSettings(device.getId()));
+    static String findToken(UnsecureDAO unsecureDAO, Device device) {
+        String token = findSetting(unsecureDAO.getDeviceAppSettings(device.getId()));
         if (token == null && device.getConfigurationId() != null) {
-            Configuration configuration = this.unsecureDAO.getConfigurationByIdWithAppSettings(device.getConfigurationId());
+            Configuration configuration = unsecureDAO.getConfigurationByIdWithAppSettings(device.getConfigurationId());
             if (configuration != null) {
                 token = findSetting(configuration.getApplicationSettings());
             }
