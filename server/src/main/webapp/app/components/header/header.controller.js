@@ -94,7 +94,7 @@ angular.module( 'headwind-kiosk' )
     };
 
     $scope.mainPanel = function() {
-        $state.transitionTo( 'main' );
+        $state.transitionTo('kiosks');
         $scope.isControlPanel = false;
     };
 

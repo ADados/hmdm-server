@@ -27,7 +27,7 @@ angular.module('headwind-kiosk')
         });
     })
     .controller('KiosksTabController', function ($scope, $q, $interval, $timeout, deviceService, configurationService,
-                                                 applicationService, kioskPushService, authService,
+                                                 applicationService, kioskPushService, authService, localization,
                                                  terminalStatusParser, KIOSK_DASHBOARD) {
         var K = KIOSK_DASHBOARD;
         var SETTING = {amount: 'DONATION_AMOUNT', presets: 'DONATION_PRESETS', location: 'STRIPE_LOCATION_ID'};
@@ -462,6 +462,86 @@ angular.module('headwind-kiosk')
             }, failed('Could not restart ' + kiosk.name));
         };
 
+        // ------------------------------------------------------------------ screenshot viewer
+        // Same flow as the device list's screenshot dialog: ask the kiosk by push, then poll until DonationTap has
+        // uploaded a screenshot newer than the one we had
+
+        var SHOT_POLL_MS = 3000;
+        var SHOT_WAIT_MS = 2 * 60 * 1000;
+        var shotPoll = null;
+
+        $scope.shot = null;
+
+        var stopShotPolling = function () {
+            if (shotPoll) {
+                $interval.cancel(shotPoll);
+                shotPoll = null;
+            }
+            if ($scope.shot) {
+                $scope.shot.waiting = false;
+            }
+        };
+
+        var loadShot = function (kiosk) {
+            return call(deviceService.getScreenshot, {id: kiosk.id});
+        };
+
+        $scope.takeScreenshot = function () {
+            var shot = $scope.shot;
+            var previousTs = shot.image ? shot.image.ts : 0;
+            stopShotPolling();
+            shot.error = null;
+            shot.timedOut = false;
+            shot.waiting = true;
+            var since = Date.now();
+            call(deviceService.requestScreenshot, {id: shot.kiosk.id}, {}).then(function () {
+                if ($scope.shot !== shot) {
+                    return;
+                }
+                shotPoll = $interval(function () {
+                    loadShot(shot.kiosk).then(function (image) {
+                        if ($scope.shot !== shot) {
+                            return;
+                        }
+                        if (image && image.ts > previousTs) {
+                            shot.image = image;
+                            stopShotPolling();
+                        } else if (Date.now() - since > SHOT_WAIT_MS) {
+                            stopShotPolling();
+                            shot.timedOut = true;
+                        }
+                    }, function (err) {
+                        stopShotPolling();
+                        shot.error = typeof err === 'string' ? err : 'Could not load the screenshot';
+                    });
+                }, SHOT_POLL_MS);
+            }, function (err) {
+                shot.waiting = false;
+                shot.error = typeof err === 'string' ? err : 'Could not ask the kiosk for a screenshot';
+            });
+        };
+
+        $scope.openScreenshot = function (kiosk) {
+            $scope.confirmRestartId = null;
+            $scope.shot = {kiosk: kiosk, image: null, waiting: true, timedOut: false, error: null};
+            var shot = $scope.shot;
+            // Show the last screenshot right away while a fresh one is on its way
+            loadShot(kiosk).then(function (image) {
+                if ($scope.shot === shot) {
+                    shot.image = image || null;
+                }
+            }, angular.noop).finally(function () {
+                if ($scope.shot === shot) {
+                    $scope.takeScreenshot();
+                }
+            });
+        };
+
+        $scope.closeScreenshot = function () {
+            stopShotPolling();
+            $scope.shot = null;
+        };
+
         // ------------------------------------------------------------------ settings panel
 
         $scope.sel = null;
@@ -534,6 +614,27 @@ angular.module('headwind-kiosk')
             });
         };
 
+        // The server replaces all device-level settings with the list it is sent (a DELETE, then one bulk INSERT
+        // into deviceApplicationSettings), so each row must carry every NOT NULL column: applicationId, name,
+        // type, readonly, lastUpdate. Rows are rebuilt in exactly that shape, like the device settings dialog sends.
+        var settingRow = function (s) {
+            var type = s.type;
+            if (type === null || type === undefined || type === '') {
+                type = 'STRING';
+            } else if (typeof type === 'number') {
+                type = ['STRING', 'INTEGER', 'BOOLEAN'][type - 1] || 'STRING';
+            }
+            return {
+                applicationId: s.applicationId,
+                name: s.name,
+                type: type,
+                value: s.value === undefined ? null : s.value,
+                comment: s.comment === undefined ? null : s.comment,
+                readonly: !!s.readonly,
+                lastUpdate: s.lastUpdate || Date.now()
+            };
+        };
+
         // Sets (value non-empty) or removes (empty) a device-level DonationTap setting in the full list
         var putSetting = function (list, appId, name, value) {
             var index = list.findIndex(function (s) {
@@ -561,6 +662,14 @@ angular.module('headwind-kiosk')
             }
         };
 
+        var serverText = function (err, fallback) {
+            if (typeof err !== 'string') {
+                return fallback;
+            }
+            var text = localization.localize(err);
+            return text && text !== err ? text : err;
+        };
+
         $scope.saveSettings = function () {
             var kiosk = $scope.sel;
             var draft = $scope.draft;
@@ -581,34 +690,50 @@ angular.module('headwind-kiosk')
                 location = '';
             }
 
+            var warnings = [];
             $scope.saving = true;
             findAppId().then(function (appId) {
-                var list = angular.copy(deviceSettings[kiosk.id] || []);
-                putSetting(list, appId, SETTING.amount, String(amount));
-                putSetting(list, appId, SETTING.presets, presets.value);
-                putSetting(list, appId, SETTING.location, location);
-                return call(deviceService.saveDeviceApplicationSettings, {id: kiosk.id}, list);
+                // Start from the device's current rows on the server, not the copy from the last refresh
+                return call(deviceService.getDeviceApplicationSettings, {id: kiosk.id}).then(function (current) {
+                    var list = angular.copy(current || []);
+                    putSetting(list, appId, SETTING.amount, String(amount));
+                    putSetting(list, appId, SETTING.presets, presets.value);
+                    putSetting(list, appId, SETTING.location, location);
+                    var rows = list.filter(function (s) {
+                        return s.applicationId && s.name;
+                    }).map(settingRow);
+                    // Never empty here (the amount is always set), and the server can't take an empty list
+                    return call(deviceService.saveDeviceApplicationSettings, {id: kiosk.id}, rows);
+                });
             }).then(function () {
-                return call(deviceService.notifyDeviceOnAppSettingsUpdate, {id: kiosk.id}, {});
+                // The settings are saved from here on; the rest only warns
+                return call(deviceService.notifyDeviceOnAppSettingsUpdate, {id: kiosk.id}, {}).catch(function (err) {
+                    warnings.push('the kiosk could not be notified (' + serverText(err, 'request failed') +
+                        '), it picks up the change at its next sync');
+                });
+            }, function (err) {
+                return $q.reject({step: 'save', err: err});
             }).then(function () {
                 return setKioskLock(kiosk, draft.locked).catch(function (err) {
-                    // The settings went through; report the lock separately
                     if (err !== 'fleet unlocked') {
-                        flash('Settings sent, but the kiosk lock could not be changed', true);
+                        warnings.push('the kiosk lock could not be changed');
                     }
-                    return 'lock failed';
                 });
-            }).then(function (lockResult) {
+            }).then(function () {
                 $scope.saving = false;
                 $scope.sel = null;
                 $scope.draft = null;
-                if (lockResult !== 'lock failed') {
+                if (warnings.length) {
+                    flash(kiosk.name + ' saved, but ' + warnings.join(', and '), true);
+                } else {
                     flash(kiosk.name + ' updated and notified');
                 }
                 return load();
-            }, function (err) {
+            }, function (failure) {
                 $scope.saving = false;
-                $scope.draftError = 'Could not save: ' + (typeof err === 'string' ? err : 'request failed');
+                var err = failure && failure.step ? failure.err : failure;
+                $scope.draftError = 'Could not save the settings: ' + serverText(err, 'request failed') +
+                    '. Nothing was changed on the kiosk.';
             });
         };
 
@@ -633,13 +758,14 @@ angular.module('headwind-kiosk')
         });
 
         var timer = $interval(function () {
-            if (!$scope.sel && !$scope.ask) {
+            if (!$scope.sel && !$scope.ask && !$scope.shot) {
                 load();
             }
         }, K.refreshMs);
 
         $scope.$on('$destroy', function () {
             $interval.cancel(timer);
+            stopShotPolling();
             if (toastTimer) {
                 $timeout.cancel(toastTimer);
             }

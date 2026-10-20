@@ -109,7 +109,7 @@ angular.module('headwind-kiosk',
 
             })
             .state('main', {
-                url: '/',
+                url: '/devices',
                 templateUrl: 'app/components/main/view/content.html',
                 controller: 'TabController',
                 ncyBreadcrumb: {
@@ -120,8 +120,9 @@ angular.module('headwind-kiosk',
                 }
 
             })
+            // The Kiosks dashboard is the landing page
             .state('kiosks', {
-                url: '/kiosks',
+                url: '/',
                 templateUrl: 'app/components/main/view/content.html',
                 controller: 'TabController',
                 ncyBreadcrumb: {
@@ -558,7 +559,7 @@ angular.module('headwind-kiosk',
             }
 
             if (authService.isLoggedIn() && trans.to().name === 'login') {
-                return trans.router.stateService.target('main');
+                return trans.router.stateService.target('kiosks');
             }
         });
     });
