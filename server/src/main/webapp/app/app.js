@@ -120,6 +120,18 @@ angular.module('headwind-kiosk',
                 }
 
             })
+            .state('kiosks', {
+                url: '/kiosks',
+                templateUrl: 'app/components/main/view/content.html',
+                controller: 'TabController',
+                ncyBreadcrumb: {
+                    label: 'Kiosks' //label to show in breadcrumbs
+                },
+                resolve: {
+                    openTab: function () {return "KIOSKS"}
+                }
+
+            })
             .state('applications', {
                 url: '/applications',
                 templateUrl: 'app/components/main/view/content.html',
