@@ -3,7 +3,7 @@ angular.module('headwind-kiosk')
     .controller('CustomersTabController', function ($scope, $rootScope, $state, $modal, alertService, confirmModal,
                                                     customerService, authService, $window, localization) {
         if (!authService.isSuperAdmin()) {
-            $state.transitionTo( 'main' );
+            $state.transitionTo('kiosks');
         }
 
         $scope.sort = {
@@ -112,7 +112,7 @@ angular.module('headwind-kiosk')
                     if (response.status === 'OK') {
                         var user = response.data;
                         authService.update(user);
-                        $state.transitionTo( 'main' );
+                        $state.transitionTo('kiosks');
                         $rootScope.$emit('aero_USER_AUTHENTICATED');
                     } else {
                         alertService.showAlertMessage(localization.localize(response.message));

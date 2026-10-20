@@ -33,7 +33,7 @@ angular.module('headwind-kiosk')
                 } else if (response.data.twoFactor) {
                     $state.transitionTo('twoFactorAuth');
                 } else {
-                    $state.transitionTo('main');
+                    $state.transitionTo('kiosks');
                     $rootScope.$emit('aero_USER_AUTHENTICATED');
                 }
             } else if (response.status === 'ERROR') {

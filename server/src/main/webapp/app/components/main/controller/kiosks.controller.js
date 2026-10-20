@@ -462,6 +462,86 @@ angular.module('headwind-kiosk')
             }, failed('Could not restart ' + kiosk.name));
         };
 
+        // ------------------------------------------------------------------ screenshot viewer
+        // Same flow as the device list's screenshot dialog: ask the kiosk by push, then poll until DonationTap has
+        // uploaded a screenshot newer than the one we had
+
+        var SHOT_POLL_MS = 3000;
+        var SHOT_WAIT_MS = 2 * 60 * 1000;
+        var shotPoll = null;
+
+        $scope.shot = null;
+
+        var stopShotPolling = function () {
+            if (shotPoll) {
+                $interval.cancel(shotPoll);
+                shotPoll = null;
+            }
+            if ($scope.shot) {
+                $scope.shot.waiting = false;
+            }
+        };
+
+        var loadShot = function (kiosk) {
+            return call(deviceService.getScreenshot, {id: kiosk.id});
+        };
+
+        $scope.takeScreenshot = function () {
+            var shot = $scope.shot;
+            var previousTs = shot.image ? shot.image.ts : 0;
+            stopShotPolling();
+            shot.error = null;
+            shot.timedOut = false;
+            shot.waiting = true;
+            var since = Date.now();
+            call(deviceService.requestScreenshot, {id: shot.kiosk.id}, {}).then(function () {
+                if ($scope.shot !== shot) {
+                    return;
+                }
+                shotPoll = $interval(function () {
+                    loadShot(shot.kiosk).then(function (image) {
+                        if ($scope.shot !== shot) {
+                            return;
+                        }
+                        if (image && image.ts > previousTs) {
+                            shot.image = image;
+                            stopShotPolling();
+                        } else if (Date.now() - since > SHOT_WAIT_MS) {
+                            stopShotPolling();
+                            shot.timedOut = true;
+                        }
+                    }, function (err) {
+                        stopShotPolling();
+                        shot.error = typeof err === 'string' ? err : 'Could not load the screenshot';
+                    });
+                }, SHOT_POLL_MS);
+            }, function (err) {
+                shot.waiting = false;
+                shot.error = typeof err === 'string' ? err : 'Could not ask the kiosk for a screenshot';
+            });
+        };
+
+        $scope.openScreenshot = function (kiosk) {
+            $scope.confirmRestartId = null;
+            $scope.shot = {kiosk: kiosk, image: null, waiting: true, timedOut: false, error: null};
+            var shot = $scope.shot;
+            // Show the last screenshot right away while a fresh one is on its way
+            loadShot(kiosk).then(function (image) {
+                if ($scope.shot === shot) {
+                    shot.image = image || null;
+                }
+            }, angular.noop).finally(function () {
+                if ($scope.shot === shot) {
+                    $scope.takeScreenshot();
+                }
+            });
+        };
+
+        $scope.closeScreenshot = function () {
+            stopShotPolling();
+            $scope.shot = null;
+        };
+
         // ------------------------------------------------------------------ settings panel
 
         $scope.sel = null;
@@ -633,13 +713,14 @@ angular.module('headwind-kiosk')
         });
 
         var timer = $interval(function () {
-            if (!$scope.sel && !$scope.ask) {
+            if (!$scope.sel && !$scope.ask && !$scope.shot) {
                 load();
             }
         }, K.refreshMs);
 
         $scope.$on('$destroy', function () {
             $interval.cancel(timer);
+            stopShotPolling();
             if (toastTimer) {
                 $timeout.cancel(toastTimer);
             }

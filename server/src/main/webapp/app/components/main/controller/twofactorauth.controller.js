@@ -35,7 +35,7 @@ angular.module('headwind-kiosk')
                 resetMessages();
 
                 if (response.status === 'OK') {
-                    $state.transitionTo('main');
+                    $state.transitionTo('kiosks');
                     $rootScope.$emit('aero_USER_AUTHENTICATED');
                 } else if (response.status === 'ERROR') {
                     if (response.message === 'error.permission.denied') {

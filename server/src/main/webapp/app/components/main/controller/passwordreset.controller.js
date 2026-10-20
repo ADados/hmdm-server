@@ -45,7 +45,7 @@ angular.module('headwind-kiosk')
                 resetMessages();
 
                 if (response.status === 'OK') {
-                    $state.transitionTo('main');
+                    $state.transitionTo('kiosks');
                     $rootScope.$emit('aero_USER_AUTHENTICATED');
                 } else if (response.status === 'ERROR') {
                     $scope.errorMessage = localization.localizeServerResponse(response);
