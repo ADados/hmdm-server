@@ -8,6 +8,7 @@ angular.module('headwind-kiosk')
         var routes = {
             SUMMARY: 'summary',
             DEVICES: 'main',
+            KIOSKS: 'kiosks',
             APPS: 'applications',
             CONFS: 'configurations',
             FILES: 'files',

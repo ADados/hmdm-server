@@ -1,0 +1,203 @@
+<div class="kd" ng-controller="KiosksTabController">
+
+    <header class="kd-head">
+        <div class="kd-wrap kd-head-row">
+            <div class="kd-brand">
+                <div class="kd-logo">
+                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"></path></svg>
+                </div>
+                <div>
+                    <div class="kd-title">Donation Tap</div>
+                    <div class="kd-muted kd-small">Kiosk fleet<span ng-if="configName"> · {{configName}}</span></div>
+                </div>
+            </div>
+            <div class="kd-head-actions">
+                <span class="kd-muted kd-small" ng-if="updatedAt">Updated {{updatedLabel()}}</span>
+                <button type="button" class="kd-btn" ng-click="refresh()" ng-disabled="loading">
+                    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="kd-wrap kd-main">
+
+        <div class="kd-banner kd-banner-error" ng-if="loadError">{{loadError}}</div>
+        <div class="kd-empty" ng-if="loading && !kiosks">Loading kiosks…</div>
+        <div class="kd-empty" ng-if="!loading && kiosks && kiosks.length === 0">
+            No devices use the configuration "{{configName}}" yet.
+        </div>
+
+        <section aria-label="Fleet summary" class="kd-stats" ng-if="kiosks">
+            <div class="kd-card kd-stat">
+                <div class="kd-muted kd-label">Online</div>
+                <div class="kd-stat-value">{{counts.online}} <span>of {{counts.total}}</span></div>
+            </div>
+            <div class="kd-card kd-stat">
+                <div class="kd-muted kd-label">Locked in kiosk mode</div>
+                <div class="kd-stat-value">{{counts.locked}} <span>of {{counts.total}}</span></div>
+            </div>
+            <div class="kd-card kd-stat">
+                <div class="kd-muted kd-label">Card readers connected</div>
+                <div class="kd-stat-value">{{counts.readers}} <span>of {{counts.total}}</span></div>
+            </div>
+            <div class="kd-card kd-stat kd-fleet">
+                <div class="kd-muted kd-label">Whole fleet</div>
+                <div class="kd-fleet-buttons">
+                    <button type="button" class="kd-btn kd-btn-sm" ng-click="lockAll()" ng-disabled="fleetBusy || !canEdit">Lock all</button>
+                    <button type="button" class="kd-btn kd-btn-sm" ng-click="unlockAll()" ng-disabled="fleetBusy || !canEdit">Unlock all</button>
+                    <button type="button" class="kd-btn kd-btn-sm" ng-click="restartAll()" ng-disabled="fleetBusy || !canEdit">Restart all</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="kd-site" ng-repeat="site in sites track by site.title">
+            <div class="kd-site-head">
+                <h2>{{site.title}}</h2>
+                <span class="kd-muted kd-small">{{site.summary}}</span>
+            </div>
+            <div class="kd-grid">
+                <article class="kd-card kd-kiosk" ng-repeat="k in site.kiosks track by k.id" ng-class="{'kd-offline': !k.online}">
+
+                    <div class="kd-kiosk-top">
+                        <div>
+                            <div class="kd-kiosk-name">{{k.name}}</div>
+                            <div class="kd-muted kd-small">{{k.seenLabel}}</div>
+                        </div>
+                        <span class="kd-pill" ng-class="k.online ? 'kd-pill-on' : 'kd-pill-off'">
+                            <span class="kd-dot"></span>{{k.online ? 'Online' : 'Offline'}}
+                        </span>
+                    </div>
+
+                    <div class="kd-tiles">
+                        <div class="kd-tile">
+                            <div class="kd-muted kd-label">Donation amount</div>
+                            <div class="kd-amount">{{k.amountLabel}}</div>
+                        </div>
+                        <div class="kd-tile">
+                            <div class="kd-muted kd-label">Card reader</div>
+                            <div class="kd-reader" ng-class="'kd-reader-' + k.reader.css">
+                                <span class="kd-dot"></span>{{k.reader.label}}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="kd-lock-row">
+                        <div>
+                            <div class="kd-strong">Kiosk lock</div>
+                            <div class="kd-muted kd-small">
+                                {{k.lockHint}}<span ng-if="k.pendingLock && k.online"> · applying…</span>
+                            </div>
+                        </div>
+                        <button type="button" class="kd-switch" ng-class="{'kd-switch-on': k.locked}"
+                                aria-pressed="{{k.locked}}" aria-label="Kiosk lock for {{k.name}}"
+                                ng-click="toggleLock(k)" ng-disabled="busy[k.id] || fleetBusy || !canEdit">
+                            <span class="kd-knob"></span>
+                        </button>
+                    </div>
+
+                    <div class="kd-muted kd-small">App {{k.app}} · Launcher {{k.launcher}} · {{k.locationLabel}}</div>
+
+                    <div class="kd-actions" ng-if="confirmRestartId !== k.id">
+                        <button type="button" class="kd-btn kd-btn-primary kd-grow" ng-click="openSettings(k)" ng-disabled="!canEdit">
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7"></path><path d="M4 10V3"></path><path d="M12 21v-9"></path><path d="M12 8V3"></path><path d="M20 21v-5"></path><path d="M20 12V3"></path><path d="M1 14h6"></path><path d="M9 8h6"></path><path d="M17 16h6"></path></svg>
+                            Settings
+                        </button>
+                        <button type="button" class="kd-btn kd-grow" ng-click="askRestart(k)" ng-disabled="!k.online || !canEdit">
+                            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.4 6.6a9 9 0 1 1-12.8 0"></path><path d="M12 2v10"></path></svg>
+                            Restart
+                        </button>
+                    </div>
+                    <div class="kd-confirm" ng-if="confirmRestartId === k.id">
+                        <div>Restart {{k.name}}? Donations pause for about a minute while it reboots.</div>
+                        <div class="kd-actions">
+                            <button type="button" class="kd-btn kd-grow" ng-click="cancelRestart()">Cancel</button>
+                            <button type="button" class="kd-btn kd-btn-danger kd-grow" ng-click="doRestart(k)">Restart now</button>
+                        </div>
+                    </div>
+
+                </article>
+            </div>
+        </section>
+    </main>
+
+    <!-- Settings side panel -->
+    <div class="kd-scrim" ng-if="sel" ng-click="closeSettings()"></div>
+    <aside class="kd-drawer" ng-if="sel" aria-label="Kiosk settings">
+        <div class="kd-drawer-head">
+            <div>
+                <div class="kd-muted kd-small">Kiosk settings</div>
+                <div class="kd-drawer-title">{{sel.name}}</div>
+            </div>
+            <button type="button" class="kd-btn kd-icon-btn" aria-label="Close" ng-click="closeSettings()">
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+            </button>
+        </div>
+
+        <form class="kd-drawer-body" ng-submit="saveSettings()" novalidate>
+            <div class="kd-field">
+                <label for="kd-amount">Donation amount</label>
+                <div class="kd-money">
+                    <span>$</span>
+                    <input id="kd-amount" type="number" min="1" step="1" inputmode="numeric" ng-model="draft.amount">
+                </div>
+                <div class="kd-chips">
+                    <button type="button" class="kd-chip" ng-repeat="n in quickAmounts"
+                            ng-class="{'kd-chip-on': draft.amount == n}" ng-click="pickAmount(n)">${{n}}</button>
+                </div>
+            </div>
+
+            <div class="kd-field">
+                <label for="kd-presets">Preset buttons on screen</label>
+                <input id="kd-presets" type="text" class="kd-input" inputmode="numeric" ng-model="draft.presets" placeholder="10, 25, 50, 100">
+                <div class="kd-muted kd-small">Up to 5 amounts, separated by commas.</div>
+            </div>
+
+            <div class="kd-field">
+                <label for="kd-location">Stripe location</label>
+                <input id="kd-location" type="text" class="kd-input" ng-model="draft.location"
+                       placeholder="{{defaultLocation || 'tml_…'}}" autocomplete="off" spellcheck="false">
+                <div class="kd-muted kd-small">
+                    The card reader pairs with this location.
+                    <span ng-if="defaultLocation">Leave empty to use the fleet default {{defaultLocation}}.</span>
+                </div>
+            </div>
+
+            <div class="kd-lock-row kd-lock-box">
+                <div>
+                    <div class="kd-strong">Kiosk lock</div>
+                    <div class="kd-muted kd-small">
+                        {{draft.locked ? 'Locked to Donation Tap' : 'Unlocked: home screen reachable'}}
+                    </div>
+                </div>
+                <button type="button" class="kd-switch" ng-class="{'kd-switch-on': draft.locked}"
+                        aria-pressed="{{draft.locked}}" aria-label="Kiosk lock" ng-click="draft.locked = !draft.locked">
+                    <span class="kd-knob"></span>
+                </button>
+            </div>
+
+            <div class="kd-banner kd-banner-error" ng-if="draftError">{{draftError}}</div>
+
+            <div class="kd-drawer-foot">
+                <button type="submit" class="kd-btn kd-btn-primary kd-btn-lg" ng-disabled="saving">
+                    {{saving ? 'Sending…' : 'Save and send to kiosk'}}
+                </button>
+                <div class="kd-muted kd-small kd-center">The kiosk picks up the change within a few seconds.</div>
+            </div>
+        </form>
+    </aside>
+
+    <!-- Fleet action confirmation -->
+    <div class="kd-scrim" ng-if="ask" ng-click="cancelAsk()"></div>
+    <div class="kd-dialog" ng-if="ask" role="dialog" aria-modal="true" aria-label="{{ask.title}}">
+        <div class="kd-dialog-title">{{ask.title}}</div>
+        <div class="kd-muted">{{ask.text}}</div>
+        <div class="kd-actions">
+            <button type="button" class="kd-btn kd-grow" ng-click="cancelAsk()">Cancel</button>
+            <button type="button" class="kd-btn kd-grow" ng-class="ask.safe ? 'kd-btn-primary' : 'kd-btn-danger'" ng-click="confirmAsk()">{{ask.okLabel}}</button>
+        </div>
+    </div>
+
+    <div class="kd-toast" role="status" ng-if="toast" ng-class="{'kd-toast-error': toast.error}">{{toast.text}}</div>
+</div>
